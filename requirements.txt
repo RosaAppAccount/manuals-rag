@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+langchain
+openai>=1.14
+faiss-cpu
+pypdf
+python-dotenv
