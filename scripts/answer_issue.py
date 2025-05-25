@@ -44,7 +44,15 @@ if not q:
     sys.exit(0)
 
 # Antwoord genereren
-ans = qa.run(q)
+# we gaan eerst debuggen ans = qa.run(q)
+import traceback
+
+try:
+    ans = qa.run(q)
+except Exception as e:
+    print("⚠️ Error tijdens QA-run:")
+    traceback.print_exc()
+    sys.exit(1)
 
 # Comment back
 body = textwrap.dedent(f"""
