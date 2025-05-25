@@ -5,15 +5,20 @@ import os
 import pathlib
 import pickle
 
-# New community & huggingface-based imports
+# Ensure Hugging Face token is set for langchain_huggingface
+hf_token = os.getenv("HF_API_TOKEN")
+if not hf_token:
+    raise RuntimeError("HF_API_TOKEN not set. Add your Hugging Face token as secret 'HF_API_TOKEN'.")
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
+
+# Community & huggingface-based imports
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 
 # Commented for future reference:
-# from langchain.embeddings import HuggingFaceEmbeddings  # deprecated
-# from langchain.embeddings import OpenAIEmbeddings       # optional OpenAI usage
+# from langchain.embeddings import OpenAIEmbeddings  # optional OpenAI usage
 
 
 def main():
@@ -38,8 +43,7 @@ def main():
 
     # --- Use free Hugging Face embeddings ---
     embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        huggingfacehub_api_token=os.getenv("HF_API_TOKEN")
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
     # --- Original OpenAI embeddings (commented out) ---
