@@ -23,18 +23,20 @@ jobs:
       - name: Install dependencies
         run: pip install --no-cache-dir -r requirements.txt
 
-      - name: Build vectorstore
-        # Active: use free Hugging Face embeddings
+      - name: Build vectorstore using HuggingFaceEmbeddings
         env:
           HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
         run: python scripts/ingest.py
 
-        # To switch back to OpenAI embeddings, you can comment out the HF_API_TOKEN
-        # block above and uncomment the following:
-        #
-        # env:
-        #   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        # run: python scripts/ingest.py
+      # ───────────────────────────────────────────────────────────────────────
+      # Als je ooit wilt terugschakelen naar OpenAI-embeddings,
+      # comment hierboven de HF-stap uit en haal hieronder de # weg:
+      #
+      # - name: Build vectorstore using OpenAIEmbeddings
+      #   env:
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #   run: python scripts/ingest.py
+      # ───────────────────────────────────────────────────────────────────────
 
       - name: Commit and push vectorstore
         run: |
