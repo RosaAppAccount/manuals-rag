@@ -22,21 +22,15 @@ jobs:
 
       - name: Install dependencies
         run: pip install --no-cache-dir -r requirements.txt
-      # ─── debug stap ────────────────────────────────────
-      - name: Debug HF token presence
-        env:
-          HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
-        run: |
-          echo "HF_API_TOKEN is set? ${HF_API_TOKEN:+yes}"
-      # ────────────────────────────────────────────────────
+
       - name: Build vectorstore using HuggingFaceEmbeddings
         env:
           HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
         run: python scripts/ingest.py
 
       # ───────────────────────────────────────────────────────────────────────
-      # Als je ooit wilt terugschakelen naar OpenAI-embeddings,
-      # comment hierboven de HF-stap uit en haal hieronder de # weg:
+      # If you ever want to switch back to OpenAI embeddings, comment out the
+      # HF_API_TOKEN block above and uncomment the following:
       #
       # - name: Build vectorstore using OpenAIEmbeddings
       #   env:
