@@ -10,19 +10,32 @@ jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           lfs: false
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install deps
-        run: pip install -r requirements.txt
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
       - name: Build vectorstore
+        # Active: use free Hugging Face embeddings
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
         run: python scripts/ingest.py
+
+        # To switch back to OpenAI embeddings, you can comment out the HF_API_TOKEN
+        # block above and uncomment the following:
+        #
+        # env:
+        #   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # run: python scripts/ingest.py
+
       - name: Commit and push vectorstore
         run: |
           git config user.name github-actions
