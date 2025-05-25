@@ -5,3 +5,4 @@ openai>=1.14
 faiss-cpu
 pypdf
 python-dotenv
+huggingface_hub
