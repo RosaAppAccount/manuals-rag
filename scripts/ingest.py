@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Create FAISS vectorstore from PDFs in ./manuals"""
+
 import os
 import pathlib
 import pickle
 
-from langchain.document_loaders import PyPDFLoader
+# New community & huggingface-based imports
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-# from langchain.embeddings import OpenAIEmbeddings  # Commented for potential future OpenAI usage
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+
+# Commented for future reference:
+# from langchain.embeddings import HuggingFaceEmbeddings  # deprecated
+# from langchain.embeddings import OpenAIEmbeddings       # optional OpenAI usage
 
 
 def main():
@@ -18,13 +23,13 @@ def main():
         "Put your manuals (PDF) inside the ./manuals directory"
     )
 
-    # Load documents
+    # Load all PDF documents
     docs = []
     for pdf_path in DATA_DIR.glob("*.pdf"):
         loader = PyPDFLoader(str(pdf_path))
         docs.extend(loader.load())
 
-    # Split into chunks
+    # Split into manageable chunks
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=int(os.getenv("CHUNK_SIZE", "1000")),
         chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "150"))
