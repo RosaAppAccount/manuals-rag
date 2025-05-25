@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 """
-GitHub Action step: answer the issue or comment using the RAG chain and post back.
+GitHub Action step: answer the issue or comment using RAG (FAISS + Hugging Face Inference API)
+and post back via the GitHub CLI.
 """
-import os, pathlib, pickle, textwrap, subprocess, sys
 
-# Zet het HF‐token in de omgevingsvariabelen voor langchain_huggingface
-hf = os.getenv("HF_API_TOKEN")
-if not hf:
+import os
+import sys
+import pathlib
+import pickle
+import textwrap
+import subprocess
+
+from langchain_community.vectorstores import FAISS
+
+# 1) HF token en InferenceClient
+from huggingface_hub import InferenceClient
+
+hf_token = os.getenv("HF_API_TOKEN")
+if not hf_token:
     print("HF_API_TOKEN not set – aborting.")
     sys.exit(1)
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf
+client = InferenceClient(token=hf_token)
 
-# Imports vanuit de community‐packages
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_community.llms import HuggingFaceHub
-from langchain.chains import RetrievalQA
-
-# Inladen vectorstore
+# 2) Laad je vectorstore
 V = pathlib.Path("vectorstore.pkl")
 if not V.exists():
     print("Vectorstore missing – run ingest first.")
@@ -26,43 +30,46 @@ if not V.exists():
 with open(V, "rb") as f:
     vstore = pickle.load(f)
 
-# INIT RAG‐chain
-llm = HuggingFaceHub(
-    repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-    huggingfacehub_api_token=hf,
-    model_kwargs={"temperature": 0, "max_length": 1024}
-)
-qa = RetrievalQA.from_chain_type(
-    llm=llm,
-    retriever=vstore.as_retriever(search_kwargs={"k": 4}),
-)
-
-# Vraag ophalen
+# 3) Haal de vraag op
 q = os.getenv("COMMENT_BODY") or os.getenv("ISSUE_BODY")
 if not q:
-    print("No question found, skipping.")
+    print("No question found – skipping.")
     sys.exit(0)
 
-# Antwoord genereren
-# we gaan eerst debuggen ans = qa.run(q)
-import traceback
+# 4) Retrieval: vind top-k documenten
+docs = vstore.similarity_search(q, k=4)
+context = "\n\n".join([d.page_content for d in docs])
 
-try:
-    ans = qa.run(q)
-except Exception as e:
-    print("⚠️ Error tijdens QA-run:")
-    traceback.print_exc()
-    sys.exit(1)
+# 5) Bouw een prompt
+prompt = f\"\"\"Beantwoord de volgende vraag op basis van de onderstaande informatie:
 
-# Comment back
-body = textwrap.dedent(f"""
+{context}
+
+Vraag: {q}
+Antwoord:\"\"\"
+
+# 6) Generatie via HF Inference API
+#    We gebruiken text_generation; pas parameters aan indien gewenst.
+response = client.text_generation(
+    model="mistralai/Mistral-7B-Instruct-v0.2",
+    inputs=prompt,
+    parameters={"max_new_tokens": 512, "temperature": 0.0}
+)
+# Het antwoord zit in generated_text
+ans = response[0].generated_text[len(prompt):].strip()
+
+# 7) Post het comment terug
+body = textwrap.dedent(f\"\"\"
 **Answer (automated)**
 
 {ans}
-""")
-num = os.getenv("ISSUE_NUMBER")
+\"\"\")
+issue_num = os.getenv("ISSUE_NUMBER")
 repo = os.getenv("GITHUB_REPOSITORY")
+
 subprocess.run([
-    "gh", "api", f"repos/{repo}/issues/{num}/comments",
-    "--method", "POST", "--field", f"body={body}"
+    "gh", "api",
+    f"/repos/{repo}/issues/{issue_num}/comments",
+    "--method", "POST",
+    "--field", f"body={body}"
 ], check=True)
