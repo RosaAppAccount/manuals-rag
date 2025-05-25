@@ -1,5 +1,10 @@
 name: QA Bot
 
+# Zorg dat we issues mogen becommentariëren
+permissions:
+  issues: write
+  contents: read
+
 on:
   issues:
     types: [opened, edited]
@@ -8,25 +13,40 @@ on:
 
 jobs:
   answer:
-    if: >
-      github.event_name == 'issue_comment' ||
-      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'ask'))
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install deps
-        run: pip install -r requirements.txt
+        run: pip install --no-cache-dir -r requirements.txt
+
       - name: Answer question
+        # Geef je HF-token door aan het script
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
           ISSUE_BODY: ${{ github.event.issue.body }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/answer_issue.py
+
+        # ───────────────────────────────────────────────────────
+        # Als je ooit terug wilt naar OpenAI, kun je deze stap
+        # uitschakelen en de volgende uncommenten:
+        #
+        # env:
+        #   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        #   ISSUE_BODY: ${{ github.event.issue.body }}
+        #   COMMENT_BODY: ${{ github.event.comment.body }}
+        #   ISSUE_NUMBER: ${{ github.event.issue.number }}
+        #   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # run: python scripts/answer_issue.py
+        # ───────────────────────────────────────────────────────
