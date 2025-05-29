@@ -49,12 +49,9 @@ Antwoord: '''
 
 # 6) Generatie via HF Inference API (model en prompt als positional args; parameters dict)
 response = client.text_generation(
-    "mistralai/Mistral-7B-Instruct-v0.2",
-    prompt,
-    parameters={
-        "max_new_tokens": 512,
-        "temperature": 0.0
-    }
+    model="mistralai/Mistral-7B-Instruct-v0.2",
+    inputs=prompt,
+    parameters={"max_new_tokens": 512, "temperature": 0.0}
 )
 # De API retourneert een lijst van generatie-antwoorden
 generated = response[0].generated_text
