@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 GitHub Action step: answer the issue or comment using RAG
-(FAISS + Hugging Face Inference API chat endpoint) and post back via the GitHub CLI.
+(FAISS + Hugging Face Inference API) and post back via the GitHub CLI.
 """
 
 import os
@@ -39,22 +39,33 @@ if not q:
 docs = vstore.similarity_search(q, k=4)
 context = "\n\n".join([d.page_content for d in docs])
 
-# 5) Bouw de chat-messages
-messages = [
-    {"role": "system", "content": "You are a helpful assistant that answers questions based on provided context."},
-    {"role": "user", "content": f"Beantwoord de volgende vraag op basis van de onderstaande informatie:\n\n{context}\n\nVraag: {q}"}
-]
+# 5) Maak het prompt voor text_generation
+prompt = textwrap.dedent(f"""
+You are a helpful assistant. Use the context below to answer the user's question.
 
-# 6) Genereer antwoord via chat.complete
-response = client.chat.complete(
-    model="mistralai/Mistral-7B-Instruct-v0.2",
-    messages=messages
+Context:
+{context}
+
+Question: {q}
+Answer:""")
+
+# 6) Genereer antwoord via HF text_generation endpoint
+response = client.text_generation(
+    "mistralai/Mistral-7B-Instruct-v0.2",
+    prompt,
+    parameters={"max_new_tokens": 512, "temperature": 0.0}
 )
-# Haal assistant content uit de eerste keuze
-ans = response.choices[0].message.content.strip()
+# De API retourneert een lijst; neem de eerste generatie
+generated = response[0].generated_text
 
-# 7) Post het antwoord als GitHub comment
-decorated = textwrap.dedent(f"""
+# Strip het prompt-voorvoegsel zodat alleen het antwoord overblijft
+if generated.startswith(prompt):
+    ans = generated[len(prompt):].strip()
+else:
+    ans = generated.strip()
+
+# 7) Plaats het antwoord als comment via de GitHub CLI
+body = textwrap.dedent(f"""
 **Answer (automated)**
 
 {ans}
@@ -66,5 +77,5 @@ subprocess.run([
     "gh", "api",
     f"/repos/{repo}/issues/{issue_num}/comments",
     "--method", "POST",
-    "--field", f"body={decorated}"
+    "--field", f"body={body}"
 ], check=True)
