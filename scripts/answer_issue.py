@@ -47,11 +47,14 @@ prompt = f'''Beantwoord de volgende vraag op basis van de onderstaande informati
 Vraag: {q}
 Antwoord: '''
 
-# 6) Generatie via HF Inference API (basic call met positional args)
+# 6) Generatie via HF Inference API (gebruik keyword args)
 response = client.text_generation(
-    "mistralai/Mistral-7B-Instruct-v0.2",
-    prompt
+    model="mistralai/Mistral-7B-Instruct-v0.2",
+    inputs=prompt,
+    max_new_tokens=512,
+    temperature=0.0
 )
+# De API retourneert list van Generation
 generated = response[0].generated_text
 
 # Strip de prompt uit de output, zodat je alleen het antwoord overhoudt
