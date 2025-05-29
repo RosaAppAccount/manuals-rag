@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 GitHub Action step: answer the issue or comment using RAG
-(FAISS + Hugging Face Inference API) and post back via the GitHub CLI.
+(FAISS + Hugging Face Inference API chat endpoint) and post back via the GitHub CLI.
 """
 
 import os
@@ -29,7 +29,7 @@ if not V.exists():
 with open(V, "rb") as f:
     vstore = pickle.load(f)
 
-# 3) Haal de vraag op uit het Issue of de Comment
+# 3) Haal de vraag op uit het Issue of de comment
 q = os.getenv("COMMENT_BODY") or os.getenv("ISSUE_BODY")
 if not q:
     print("No question found – skipping.")
@@ -39,31 +39,22 @@ if not q:
 docs = vstore.similarity_search(q, k=4)
 context = "\n\n".join([d.page_content for d in docs])
 
-# 5) Bouw je prompt
-prompt = f'''Beantwoord de volgende vraag op basis van de onderstaande informatie:
+# 5) Bouw de chat-messages
+messages = [
+    {"role": "system", "content": "You are a helpful assistant that answers questions based on provided context."},
+    {"role": "user", "content": f"Beantwoord de volgende vraag op basis van de onderstaande informatie:\n\n{context}\n\nVraag: {q}"}
+]
 
-{context}
-
-Vraag: {q}
-Antwoord: '''
-
-# 6) Generatie via HF Inference API (model en prompt als positional args; parameters dict)
-response = client.text_generation(
+# 6) Genereer antwoord via chat.complete
+response = client.chat.complete(
     model="mistralai/Mistral-7B-Instruct-v0.2",
-    inputs=prompt,
-    parameters={"max_new_tokens": 512, "temperature": 0.0}
+    messages=messages
 )
-# De API retourneert een lijst van generatie-antwoorden
-generated = response[0].generated_text
+# Haal assistant content uit de eerste keuze
+ans = response.choices[0].message.content.strip()
 
-# Strip de prompt uit de output zodat je alleen het antwoord overhoudt
-if generated.startswith(prompt):
-    ans = generated[len(prompt):].strip()
-else:
-    ans = generated.strip()
-
-# 7) Plaats het antwoord als comment via de GitHub CLI
-body = textwrap.dedent(f"""
+# 7) Post het antwoord als GitHub comment
+decorated = textwrap.dedent(f"""
 **Answer (automated)**
 
 {ans}
@@ -75,5 +66,5 @@ subprocess.run([
     "gh", "api",
     f"/repos/{repo}/issues/{issue_num}/comments",
     "--method", "POST",
-    "--field", f"body={body}"
+    "--field", f"body={decorated}"
 ], check=True)
